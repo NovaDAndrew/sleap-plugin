@@ -1,0 +1,6 @@
+plugin_enabled: "SleepPlugin enabled! Now only half of the players are needed to skip the night."
+plugin_disabled: "SleepPlugin disabled!"
+sleep_progress: "Sleeping %d of %d players required to skip the night"
+sleep_countdown: "Skipping night in 3 seconds... (%d/%d players sleeping)"
+sleep_canceled: "Night skip canceled - player woke up!"
+sleep_success: "Night skipped! Good morning!"

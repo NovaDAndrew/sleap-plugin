@@ -10,6 +10,7 @@ Minecraft Paper 1.21.5 plugin for enhanced sleep mechanics - only half of online
 - Progress notifications
 - Cancel when players wake up
 - Multi-world support
+- Multi-language support (English and Russian)
 
 ## Examples
 
@@ -27,9 +28,26 @@ Minecraft Paper 1.21.5 plugin for enhanced sleep mechanics - only half of online
 
 ## Installation
 
-1. Download `SleepPlugin-1.0.0.jar`
+1. Download `SleepPlugin-1.0.1.jar`
 2. Place in server's `plugins` folder
 3. Restart server
+
+## Configuration
+
+After first server start with the plugin, a configuration file will be created at `plugins/SleepPlugin/config.yml`:
+
+```yaml
+# SleepPlugin Configuration
+language: en_EN  # Default language, can be ru_RU or en_EN
+skip-delay: 3    # Delay in seconds before skipping night
+morning-time: 1000  # Time to set when skipping to morning
+```
+
+### Settings:
+
+- `language`: Language for plugin messages (en_EN or ru_RU)
+- `skip-delay`: Time in seconds before night is skipped
+- `morning-time`: Minecraft time value to set when skipping to morning
 
 ## Building
 

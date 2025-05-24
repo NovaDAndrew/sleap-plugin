@@ -12,6 +12,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,12 +22,43 @@ public class SleepPlugin extends JavaPlugin implements Listener {
     
     private final Map<World, Set<Player>> sleepingPlayers = new HashMap<>();
     private final Map<World, BukkitRunnable> sleepTasks = new HashMap<>();
+    private LanguageManager lang;
+    
+    private int skipDelay;
+    private int morningTime;
     
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+        
+        String language = getConfig().getString("language", "en_EN");
+        skipDelay = getConfig().getInt("skip-delay", 3);
+        morningTime = getConfig().getInt("morning-time", 1000);
+        
+        saveLanguageFiles();
+        
+        lang = new LanguageManager(this, language);
+        
         Bukkit.getPluginManager().registerEvents(this, this);
         
-        getLogger().info("SleepPlugin включен! Теперь для пропуска ночи нужна только половина игроков.");
+        getLogger().info(lang.getMessage("plugin_enabled"));
+    }
+    
+    private void saveLanguageFiles() {
+        String[] supportedLanguages = {"en_EN", "ru_RU"};
+        
+        File langDir = new File(getDataFolder(), "lang");
+        if (!langDir.exists()) {
+            langDir.mkdirs();
+        }
+        
+        for (String langCode : supportedLanguages) {
+            String fileName = "lang/" + langCode + ".yml";
+            if (getResource(fileName) != null) {
+                saveResource(fileName, false);
+                getLogger().info("Language file " + langCode + ".yml has been initialized");
+            }
+        }
     }
     
     @Override
@@ -39,7 +71,7 @@ public class SleepPlugin extends JavaPlugin implements Listener {
         sleepTasks.clear();
         sleepingPlayers.clear();
         
-        getLogger().info("SleepPlugin отключен!");
+        getLogger().info(lang.getMessage("plugin_disabled"));
     }
     
     @EventHandler
@@ -78,7 +110,7 @@ public class SleepPlugin extends JavaPlugin implements Listener {
             task.cancel();
             sleepTasks.remove(world);
             
-            broadcastToWorld(world, Component.text("Пропуск ночи отменен - игрок проснулся!", NamedTextColor.YELLOW));
+            broadcastToWorld(world, Component.text(lang.getMessage("sleep_canceled"), NamedTextColor.YELLOW));
         }
     }
     
@@ -102,8 +134,7 @@ public class SleepPlugin extends JavaPlugin implements Listener {
         if (currentSleeping >= requiredSleeping) {
             startNightSkip(world, currentSleeping, onlinePlayersInWorld);
         } else {
-            String message = String.format("Спят %d из %d необходимых игроков для пропуска ночи", 
-                    currentSleeping, requiredSleeping);
+            String message = lang.getMessage("sleep_progress", currentSleeping, requiredSleeping);
             broadcastToWorld(world, Component.text(message, NamedTextColor.AQUA));
         }
     }
@@ -126,10 +157,10 @@ public class SleepPlugin extends JavaPlugin implements Listener {
         }
         
 
-        String message = String.format("Пропуск ночи через 3 секунды... (%d/%d игроков спят)", 
-                sleepingCount, totalCount);
+        String message = lang.getMessage("sleep_countdown", sleepingCount, totalCount);
         broadcastToWorld(world, Component.text(message, NamedTextColor.GREEN));
         
+        // Используем настройку из конфига для задержки
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
@@ -150,10 +181,10 @@ public class SleepPlugin extends JavaPlugin implements Listener {
                     }
                     
                     if (isNight(world)) {
-                        world.setTime(1000);
+                        world.setTime(morningTime);
                     }
                     
-                    broadcastToWorld(world, Component.text("Ночь пропущена! Доброе утро!", NamedTextColor.GOLD));
+                    broadcastToWorld(world, Component.text(lang.getMessage("sleep_success"), NamedTextColor.GOLD));
                     
                     sleepingPlayers.remove(world);
                 }
@@ -162,7 +193,8 @@ public class SleepPlugin extends JavaPlugin implements Listener {
             }
         };
         
-        task.runTaskLater(this, 60L); 
+        // Конвертируем секунды в тики (20 тиков = 1 секунда)
+        task.runTaskLater(this, skipDelay * 20L); 
         sleepTasks.put(world, task);
     }
     

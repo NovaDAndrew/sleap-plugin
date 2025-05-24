@@ -1,0 +1,4 @@
+# SleepPlugin Configuration
+language: en_EN  # Default language, can be ru_RU or en_EN
+skip-delay: 3    # Delay in seconds before skipping night
+morning-time: 1000  # Time to set when skipping to morning
