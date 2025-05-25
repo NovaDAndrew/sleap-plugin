@@ -17,34 +17,66 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SleepPlugin extends JavaPlugin implements Listener {
     
     private final Map<World, Set<Player>> sleepingPlayers = new HashMap<>();
     private final Map<World, BukkitRunnable> sleepTasks = new HashMap<>();
+    private final Map<UUID, Long> lastProgressMessageTime = new ConcurrentHashMap<>();
     private LanguageManager lang;
     
     private int skipDelay;
     private int morningTime;
+    private String messageMode;
+    private int minPlayersRequired;
+    private boolean ignoreNetherEndPlayers;
+    private boolean skipStorms;
+    private boolean smoothTimeEnabled;
+    private int smoothTimeDuration;
+    private int smoothTimeSteps;
+    
+    private static final long PROGRESS_MESSAGE_COOLDOWN = 3000;
+    
+    private static final String PLUGIN_VERSION = "1.0.2";
     
     @Override
     public void onEnable() {
         saveDefaultConfig();
         
+        ConfigUpdater configUpdater = new ConfigUpdater(this, PLUGIN_VERSION);
+        boolean configUpdated = configUpdater.updateConfig("config.yml", true);
+        
+        if (configUpdated) {
+            String oldVersion = getConfig().getString("version", "1.0.1");
+            getLogger().info("Configuration updated from v" + oldVersion + " to v" + PLUGIN_VERSION);
+            getLogger().info("New settings have been added while preserving your existing configuration.");
+        }
+        
         String language = getConfig().getString("language", "en_EN");
         skipDelay = getConfig().getInt("skip-delay", 3);
         morningTime = getConfig().getInt("morning-time", 1000);
+        messageMode = getConfig().getString("message-mode", "normal");
+        minPlayersRequired = getConfig().getInt("min-players-required", 2);
+        ignoreNetherEndPlayers = getConfig().getBoolean("ignore-nether-end-players", true);
+        skipStorms = getConfig().getBoolean("storm-settings.skip-storms", true);
+        smoothTimeEnabled = getConfig().getBoolean("smooth-time-transition.enabled", true);
+        smoothTimeDuration = getConfig().getInt("smooth-time-transition.duration-ticks", 60);
+        smoothTimeSteps = getConfig().getInt("smooth-time-transition.steps", 60);
         
-        saveLanguageFiles();
+        updateLanguageFiles(configUpdater);
         
         lang = new LanguageManager(this, language);
         
         Bukkit.getPluginManager().registerEvents(this, this);
         
+        displayPluginInfo();
+        
         getLogger().info(lang.getMessage("plugin_enabled"));
     }
     
-    private void saveLanguageFiles() {
+    private void updateLanguageFiles(ConfigUpdater configUpdater) {
         String[] supportedLanguages = {"en_EN", "ru_RU"};
         
         File langDir = new File(getDataFolder(), "lang");
@@ -53,10 +85,9 @@ public class SleepPlugin extends JavaPlugin implements Listener {
         }
         
         for (String langCode : supportedLanguages) {
-            String fileName = "lang/" + langCode + ".yml";
-            if (getResource(fileName) != null) {
-                saveResource(fileName, false);
-                getLogger().info("Language file " + langCode + ".yml has been initialized");
+            boolean updated = configUpdater.updateLanguageFile(langCode);
+            if (updated) {
+                getLogger().info("Language file " + langCode + ".yml has been updated to v" + PLUGIN_VERSION);
             }
         }
     }
@@ -104,13 +135,25 @@ public class SleepPlugin extends JavaPlugin implements Listener {
                 sleepingPlayers.remove(world);
             }
         }
-    
+
+        int onlinePlayersInWorld = (int) Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.getWorld().equals(world))
+                .filter(p -> !p.isSleepingIgnored())
+                .filter(p -> !shouldIgnorePlayer(p))
+                .count();
+        
+        int requiredSleeping = calculateRequiredSleeping(onlinePlayersInWorld);
+        
+        int currentSleeping = sleeping != null ? sleeping.size() : 0;
         BukkitRunnable task = sleepTasks.get(world);
-        if (task != null && !task.isCancelled()) {
+        if (task != null && !task.isCancelled() && currentSleeping < requiredSleeping) {
             task.cancel();
             sleepTasks.remove(world);
             
-            broadcastToWorld(world, Component.text(lang.getMessage("sleep_canceled"), NamedTextColor.YELLOW));
+            if (!messageMode.equals("silent")) {
+                String messageKey = messageMode.equals("minimal") ? "sleep_canceled_minimal" : "sleep_canceled";
+                broadcastToWorld(world, Component.text(lang.getMessage(messageKey), NamedTextColor.YELLOW));
+            }
         }
     }
     
@@ -120,11 +163,17 @@ public class SleepPlugin extends JavaPlugin implements Listener {
             return;
         }
         
-        int onlinePlayersInWorld = (int) world.getPlayers().stream()
+        int onlinePlayersInWorld = (int) Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.getWorld().equals(world))
                 .filter(p -> !p.isSleepingIgnored())
+                .filter(p -> !shouldIgnorePlayer(p))
                 .count();
         
         if (onlinePlayersInWorld == 0) {
+            return;
+        }
+        
+        if (onlinePlayersInWorld < minPlayersRequired) {
             return;
         }
         
@@ -133,17 +182,29 @@ public class SleepPlugin extends JavaPlugin implements Listener {
         
         if (currentSleeping >= requiredSleeping) {
             startNightSkip(world, currentSleeping, onlinePlayersInWorld);
-        } else {
-            String message = lang.getMessage("sleep_progress", currentSleeping, requiredSleeping);
-            broadcastToWorld(world, Component.text(message, NamedTextColor.AQUA));
+        } else if (!messageMode.equals("silent")) {
+            UUID worldId = world.getUID();
+            long currentTime = System.currentTimeMillis();
+            
+            if (!lastProgressMessageTime.containsKey(worldId) || 
+                    currentTime - lastProgressMessageTime.get(worldId) > PROGRESS_MESSAGE_COOLDOWN) {
+                
+                lastProgressMessageTime.put(worldId, currentTime);
+                
+                String messageKey = isOnlyStorm(world) ? "storm_progress" : "sleep_progress";
+                String message = lang.getMessage(messageKey, currentSleeping, requiredSleeping);
+                
+                sendMessageToWorld(world, message);
+            }
         }
     }
     
     private int calculateRequiredSleeping(int onlinePlayers) {
-        if (onlinePlayers == 2) {
-            return 1;
+        if (onlinePlayers <= 1) {
+            return Integer.MAX_VALUE;
         }
-        else if (onlinePlayers % 2 == 1) {
+        
+        if (onlinePlayers % 2 == 1) {
             return (onlinePlayers - 1) / 2;
         } else {
             return onlinePlayers / 2;
@@ -156,11 +217,29 @@ public class SleepPlugin extends JavaPlugin implements Listener {
             existingTask.cancel();
         }
         
-
-        String message = lang.getMessage("sleep_countdown", sleepingCount, totalCount);
-        broadcastToWorld(world, Component.text(message, NamedTextColor.GREEN));
+        if (!messageMode.equals("silent")) {
+            UUID worldId = world.getUID();
+            long currentTime = System.currentTimeMillis();
+            
+            if (!lastProgressMessageTime.containsKey(worldId) || 
+                    currentTime - lastProgressMessageTime.get(worldId) > PROGRESS_MESSAGE_COOLDOWN) {
+                
+                lastProgressMessageTime.put(worldId, currentTime);
+                
+                String baseKey = isOnlyStorm(world) ? "storm" : "sleep";
+                String messageKey = messageMode.equals("minimal") ? baseKey + "_countdown_minimal" : baseKey + "_countdown";
+                String message;
+                
+                if (messageMode.equals("minimal")) {
+                    message = lang.getMessage(messageKey, sleepingCount, totalCount);
+                } else {
+                    message = lang.getMessage(messageKey, skipDelay, sleepingCount, totalCount);
+                }
+                
+                broadcastToWorld(world, Component.text(message, NamedTextColor.GREEN));
+            }
+        }
         
-        // Используем настройку из конфига для задержки
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
@@ -175,16 +254,55 @@ public class SleepPlugin extends JavaPlugin implements Listener {
                         .count();
                 
                 if (currentSleeping.size() >= calculateRequiredSleeping(currentOnline)) {
+                    boolean wasNight = isNight(world);
+                    boolean wasStorm = world.isThundering() || world.hasStorm();
+                    
                     if (world.isThundering()) {
                         world.setThundering(false);
                         world.setStorm(false);
                     }
                     
-                    if (isNight(world)) {
-                        world.setTime(morningTime);
+                    if (wasNight) {
+                        if (smoothTimeEnabled) {
+                            smoothlySetTime(world, morningTime);
+                        } else {
+                            world.setTime(morningTime);
+                        }
                     }
                     
-                    broadcastToWorld(world, Component.text(lang.getMessage("sleep_success"), NamedTextColor.GOLD));
+                    if (!messageMode.equals("silent")) {
+                        String baseKey;
+                        if (wasNight) {
+                            baseKey = "sleep";
+                        } else if (wasStorm) {
+                            baseKey = "storm";
+                        } else {
+                            baseKey = null;
+                        }
+                        
+                        if (baseKey != null) {
+                            UUID worldId = world.getUID();
+                            long currentTime = System.currentTimeMillis();
+                            
+                            if (!lastProgressMessageTime.containsKey(worldId) || 
+                                    currentTime - lastProgressMessageTime.get(worldId) > PROGRESS_MESSAGE_COOLDOWN) {
+                                
+                                lastProgressMessageTime.put(worldId, currentTime);
+                                
+                                String messageKey;
+                                
+                                if (wasNight && smoothTimeEnabled && baseKey.equals("sleep")) {
+                                    messageKey = messageMode.equals("minimal") ? 
+                                        "sleep_skipping_smooth_minimal" : "sleep_skipping_smooth";
+                                } else {
+                                    messageKey = messageMode.equals("minimal") ? 
+                                        baseKey + "_success_minimal" : baseKey + "_success";
+                                }
+                                
+                                broadcastToWorld(world, Component.text(lang.getMessage(messageKey), NamedTextColor.GOLD));
+                            }
+                        }
+                    }
                     
                     sleepingPlayers.remove(world);
                 }
@@ -192,14 +310,28 @@ public class SleepPlugin extends JavaPlugin implements Listener {
                 sleepTasks.remove(world);
             }
         };
-        
-        // Конвертируем секунды в тики (20 тиков = 1 секунда)
+    
         task.runTaskLater(this, skipDelay * 20L); 
         sleepTasks.put(world, task);
     }
     
     private boolean isNightOrStorm(World world) {
-        return isNight(world) || world.hasStorm();
+        boolean night = isNight(world);
+        boolean storm = skipStorms && world.hasStorm();
+        return night || storm;
+    }
+    
+    private boolean isOnlyStorm(World world) {
+        return skipStorms && world.hasStorm() && !isNight(world);
+    }
+    
+    private boolean shouldIgnorePlayer(Player player) {
+        if (!ignoreNetherEndPlayers) {
+            return false;
+        }
+        
+        World.Environment env = player.getWorld().getEnvironment();
+        return env == World.Environment.NETHER || env == World.Environment.THE_END;
     }
     
     private boolean isNight(World world) {
@@ -210,6 +342,65 @@ public class SleepPlugin extends JavaPlugin implements Listener {
     private void broadcastToWorld(World world, Component message) {
         for (Player player : world.getPlayers()) {
             player.sendMessage(message);
+        }
+    }
+    
+    private void sendMessageToWorld(World world, String message) {
+        Component component = Component.text(message);
+        for (Player player : world.getPlayers()) {
+            player.sendMessage(component);
+        }
+    }
+    
+    private void smoothlySetTime(World world, long targetTime) {
+        long currentTime = world.getTime();
+        long diff = (targetTime - currentTime + 24000L) % 24000L; 
+        
+        if (diff < 100) {
+            world.setTime(targetTime);
+            return;
+        }
+        
+        final int stepCount = smoothTimeSteps;
+        final int ticksPerStep = Math.max(1, smoothTimeDuration / stepCount);
+        
+        for (int i = 0; i < stepCount; i++) {
+            final int step = i;
+            Bukkit.getScheduler().runTaskLater(this, () -> {
+                double progress = (double)(step + 1) / stepCount;
+                double smoothProgress = (1 - Math.cos(Math.PI * progress)) / 2;
+                long newTime = (currentTime + (long)(diff * smoothProgress)) % 24000L;
+                world.setTime(newTime);
+                
+                if (step == stepCount - 1) {
+                    world.setTime(targetTime);
+                }
+            }, ticksPerStep * i);
+        }
+    }
+    
+    private void displayPluginInfo() {
+        String[] infoLines = {
+            "\n",
+            "  ╔═════════════════════════════════════════════════════╗",
+            "  ║                  SleepPlugin v1.0.2                 ║",
+            "  ╠═════════════════════════════════════════════════════╣",
+            "  ║  Author: NovaDAndrew                                ║",
+            "  ║  Modrinth: https://modrinth.com/plugin/sleep-plugin ║",
+            "  ║  GitHub: https://github.com/NovaDAndrew/sleep-plugin║",
+            "  ╠═════════════════════════════════════════════════════╣",
+            "  ║  Features:                                          ║",
+            "  ║  • Skip night with only half of players sleeping    ║",
+            "  ║  • Multiple message modes (normal/minimal/silent)   ║",
+            "  ║  • Configurable minimum player requirement          ║",
+            "  ║  • Smooth time transition (day/night)               ║",
+            "  ║  • Multi-language support (EN/RU)                   ║",
+            "  ╚═════════════════════════════════════════════════════╝",
+            ""
+        };
+        
+        for (String line : infoLines) {
+            getLogger().info(line);
         }
     }
 }

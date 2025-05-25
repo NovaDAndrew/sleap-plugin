@@ -1,4 +1,16 @@
 # SleepPlugin Configuration
+# Do not change this version number manually
+version: "1.0.2"
+
 language: en_EN  # Default language, can be ru_RU or en_EN
 skip-delay: 3    # Delay in seconds before skipping night
 morning-time: 1000  # Time to set when skipping to morning
+message-mode: normal  # Message mode options: normal, minimal, silent
+min-players-required: 2  # Minimum number of players required to activate sleep mechanics
+ignore-nether-end-players: true  # If true, players in the Nether or End will not be counted for sleep calculations
+smooth-time-transition:
+  enabled: true  # Whether to enable smooth time transition or instant time change
+  duration-ticks: 60  # Duration of the transition in ticks (20 ticks = 1 second)
+  steps: 60  # Number of steps in the transition, more steps = smoother transition
+storm-settings:
+  skip-storms: true  # If true, players can skip storms by sleeping

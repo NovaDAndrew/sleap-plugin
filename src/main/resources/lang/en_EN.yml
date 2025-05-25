@@ -1,6 +1,22 @@
+# Do not change this version number manually
+version: "1.0.2"
+
 plugin_enabled: "SleepPlugin enabled! Now only half of the players are needed to skip the night."
 plugin_disabled: "SleepPlugin disabled!"
+config_updated: "Configuration updated from v%s to v%s. Added %d new settings."
 sleep_progress: "Sleeping %d of %d players required to skip the night"
-sleep_countdown: "Skipping night in 3 seconds... (%d/%d players sleeping)"
+sleep_countdown: "Skipping night in %d seconds... (%d/%d players sleeping)"
 sleep_canceled: "Night skip canceled - player woke up!"
 sleep_success: "Night skipped! Good morning!"
+sleep_skipping_smooth: "Skipping night..."
+
+sleep_countdown_minimal: "Skipping night (%d/%d)"
+sleep_canceled_minimal: "Skip canceled"
+sleep_success_minimal: "Morning!"
+sleep_skipping_smooth_minimal: "Skipping..."
+
+storm_progress: "Sleeping %d of %d players required to clear the storm"
+storm_countdown: "Clearing storm in %d seconds... (%d/%d players sleeping)"
+storm_success: "Storm cleared! The skies are clear again!"
+storm_countdown_minimal: "Clearing storm (%d/%d)"
+storm_success_minimal: "Storm cleared!"

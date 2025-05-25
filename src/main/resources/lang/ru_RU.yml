@@ -1,6 +1,22 @@
+# Не изменяйте этот номер версии вручную
+version: "1.0.2"
+
 plugin_enabled: "SleepPlugin включен! Теперь для пропуска ночи нужна только половина игроков."
 plugin_disabled: "SleepPlugin отключен!"
+config_updated: "Конфигурация обновлена с версии %s до версии %s. Добавлено %d новых настроек."
 sleep_progress: "Спят %d из %d необходимых игроков для пропуска ночи"
-sleep_countdown: "Пропуск ночи через 3 секунды... (%d/%d игроков спят)"
+sleep_countdown: "Пропуск ночи через %d секунды... (%d/%d игроков спят)"
 sleep_canceled: "Пропуск ночи отменен - игрок проснулся!"
 sleep_success: "Ночь пропущена! Доброе утро!"
+sleep_skipping_smooth: "Пропускаем ночь..."
+
+sleep_countdown_minimal: "Пропуск ночи (%d/%d)"
+sleep_canceled_minimal: "Пропуск отменен"
+sleep_success_minimal: "Доброе утро!"
+sleep_skipping_smooth_minimal: "Пропускаем..."
+
+storm_progress: "Спят %d из %d необходимых игроков для прекращения шторма"
+storm_countdown: "Прекращение шторма через %d секунды... (%d/%d игроков спят)"
+storm_success: "Шторм прекращен! Небо снова чистое!"
+storm_countdown_minimal: "Прекращение шторма (%d/%d)"
+storm_success_minimal: "Шторм прекращен!"

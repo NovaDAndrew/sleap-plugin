@@ -1,6 +1,6 @@
 # SleepPlugin
 
-Minecraft Paper 1.21.5 plugin for enhanced sleep mechanics - only half of online players need to sleep to skip the night.
+Minecraft Paper 1.21.x plugin for enhanced sleep mechanics - only half of online players need to sleep to skip the night.
 
 ## Features
 
@@ -8,7 +8,7 @@ Minecraft Paper 1.21.5 plugin for enhanced sleep mechanics - only half of online
 - Smart counting for odd player counts
 - Multiple message modes (normal, minimal, silent)
 - Storm and night skipping
-- Ignore players in Nether and End dimensions 
+- Ignore players in Nether and End dimensions
 - Smooth time transition from night to morning
 - Configuration update system (preserves settings during updates)
 - Multi-world support
@@ -22,18 +22,6 @@ Minecraft Paper 1.21.5 plugin for enhanced sleep mechanics - only half of online
 - 5 players online: 2 players need to sleep ((5-1)/2 = 2)
 - 6 players online: 3 players need to sleep
 
-## Requirements
-
-- Minecraft: 1.21.5
-- Server: Paper (or compatible)
-- Java: 21+
-
-## Installation
-
-1. Download `SleepPlugin-1.0.2.jar`
-2. Place in server's `plugins` folder
-3. Restart server
-
 ## Configuration
 
 After first server start with the plugin, a configuration file will be created at `plugins/SleepPlugin/config.yml`:
@@ -44,13 +32,13 @@ After first server start with the plugin, a configuration file will be created a
 version: "1.0.2"
 
 language: en_EN  
-skip-delay: 3   
+skip-delay: 3    
 morning-time: 1000  
-message-mode: normal 
-min-players-required: 2 
-ignore-nether-end-players: true 
+message-mode: normal  
+min-players-required: 2  
+ignore-nether-end-players: true  
 smooth-time-transition:
-  enabled: true 
+  enabled: true  
   duration-ticks: 60 
   steps: 60 
 storm-settings:
@@ -74,14 +62,3 @@ storm-settings:
   - `steps`: Number of intermediate steps (higher = smoother)
 - `storm-settings`: Settings for the storm skipping feature
   - `skip-storms`: When true, players can skip storms by sleeping
-
-## Building
-
-1. Install Java 21+
-2. Clone repository
-3. Run: `./gradlew build`
-4. JAR file will be in `build/libs/`
-
-## License
-
-MIT License

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.sleapplugin"
-version = "1.0.1"
+version = "1.0.2"
 description = "A plugin that allows night skip with half of online players"
 
 repositories {
@@ -26,10 +26,10 @@ java {
 paper {
     main = "com.sleapplugin.SleepPlugin"
     name = "SleepPlugin"
-    version = "1.0.1"
+    version = "1.0.2"
     description = "A plugin that allows night skip with half of online players"
     apiVersion = "1.21"
-    author = "Puer33"
+    author = "NovaDAndrew" //Puer33 minecraft nickname
     
     permissions {
         register("sleepplugin.admin") {
