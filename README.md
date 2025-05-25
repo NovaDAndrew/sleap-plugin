@@ -1,6 +1,6 @@
 # SleepPlugin
 
-Minecraft Paper 1.21.5 plugin for enhanced sleep mechanics - only half of online players need to sleep to skip the night.
+Minecraft Paper 1.21.х plugin for enhanced sleep mechanics - only half of online players need to sleep to skip the night.
 
 ## Features
 
